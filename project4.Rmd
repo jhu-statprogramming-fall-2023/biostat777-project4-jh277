@@ -1,0 +1,213 @@
+---
+title: "Rainfall and Temperature"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: 
+      version: 4
+      bootswatch: minty
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(tidytuesdayR)
+library(here)
+library(ggplot2)
+library(shiny)
+library(DT)
+```
+
+# About
+
+## Column { .tabset}
+
+Rainfall and temperature are two important determining factors in agriculture production. However, factors like geographical region and interdependence between these two variables makes it hard to accurately model their relationship. 
+
+Moreover, it is important to remind the mutual relationship between environmental factors (rainfall and temperature) and human activities (agricultural production). While environmental factors play a great role in determining crop production, modern agriculture also brings great impact to our ecosystem by accelerating climate change.
+
+The goal of this dashboard is to help users explore the relationship between rainfall and temperature. 
+
+<iframe
+    width="640"
+    height="480"
+    src="https://www.youtube.com/embed/UmX4kyB2wfg"
+    frameborder="0"
+    allow="autoplay; encrypted-media"
+    allowfullscreen
+>
+</iframe>
+
+# Data
+
+## Column { .tabset}
+
+### Introduction to datasets 
+The two datasets comes from [TidyTuesday](https://www.tidytuesday.com). Specifically, I will use data that comes from January 2020.
+
+Here are the links to the original datasets: [rainfall](https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/rainfall.csv) and [temperature](https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/temperature.csv)
+
+If you want to find out what the column names represent, here is the link to the [data dictionary](https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-01-07/readme.md#data-dictionary)
+
+```{r, echo=FALSE}
+if(!dir.exists(here("data"))){
+  dir.create(here("data"))
+}
+if (!file.exists(here("data", "tuesdata_rainfall.RDS"))) {
+    tuesdata <- tidytuesdayR::tt_load("2020-01-07")
+    rainfall <- tuesdata$rainfall
+    temperature <- tuesdata$temperature
+    saveRDS(tuesdata$rainfall, file = here("data", "tuesdata_rainfall.RDS"))
+    saveRDS(tuesdata$temperature, file = here("data", "tuesdata_temperature.RDS"))
+}
+rainfall <- readRDS(here("data", "tuesdata_rainfall.RDS"))
+temperature <- readRDS(here("data", "tuesdata_temperature.RDS"))
+```
+
+## Column { .tabset .tab-fade}
+
+### Rainfall
+```{r}
+DT::renderDataTable({
+  DT::datatable(rainfall,
+                caption = htmltools::tags$caption(
+                  style = 'caption-side: top; text-align: Left;'),
+                options = list(autoWidth = TRUE,
+                               pageLength = 10,
+                               scroller = TRUE,
+                               scrollY = '450px'))
+})
+```
+
+### Temperature
+```{r}
+DT::renderDataTable({
+  DT::datatable(temperature,
+                caption = htmltools::tags$caption(
+                  style = 'caption-side: top; text-align: Left;'),
+                options = list(autoWidth = TRUE,
+                               pageLength = 10,
+                               scroller = TRUE,
+                               scrollY = '450px'))
+})
+```
+
+# Interactive Analysis {data-orientation=rows}
+
+## Row {data-height=3}
+```{r}
+# user input (city)
+selectInput(inputId = "input_city", 
+              label = "Select a city:",
+              choices = c("PERTH", "SYDNEY", "BRISBANE", "CANBERRA", "MELBOURNE"), 
+            selected = "PERTH")
+# user input (year)
+numericInput(inputId = "input_year", 
+             label = "Select a year:", 
+             value = 2014, min = 1967, max = 2019)
+```
+
+
+## Row { .tabset}
+
+### Distribution of rainfall
+```{r}
+sliderInput(inputId = "num_bin",
+            label = "Number of bins:",
+            min = 10,
+            max = 30,
+            value = 20)
+# data wrangling
+rainfall_wrangled <- rainfall %>%
+  na.omit(rainfall) %>%
+  unite("date", c("year", "month", "day"), sep = "-", remove = FALSE) %>%
+  mutate(date = ymd(date)) %>%
+  select(-month, -day) %>%
+  mutate(city_name = str_to_upper(city_name))
+combined_data <- inner_join(x = rainfall_wrangled, y = temperature,  by=c('date', 'city_name'), relationship = "many-to-many")
+# interactive plot
+renderPlot({
+  combined_data %>%
+    filter(city_name == input$input_city, year == input$input_year) %>%
+    ggplot(aes(log(rainfall))) +
+    geom_histogram(colour = 4, fill = "white", bins = input$num_bin) +
+    labs(title = paste("Distribution of rainfall (log scale) in", str_to_lower(input$input_city), "in", input$input_year),
+         x = "Log-transformed rainfall",
+         y = "count of rainfall amount") +
+         theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+})
+```
+
+### Distribution of temperature
+```{r}
+renderPlot({
+  combined_data %>%
+    filter(city_name == input$input_city, year == input$input_year) %>%
+    ggplot(aes(x = date, y = temperature, colour = temp_type)) +
+    geom_line(size = 2) +
+    labs(title = paste("Distribution of temperature in", str_to_lower(input$input_city), "in", input$input_year),
+       x = "Date", y = "Temperature") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(hjust = 1, vjust = 1))
+})
+```
+
+# Static Analysis
+
+## Column {data-width="350"}
+
+### Temperature change since 2014
+```{r}
+combined_data %>%
+  filter(year >= 2014) %>%
+  ggplot(aes(x = date, y = temperature, colour = temp_type)) +
+  geom_line() +
+  facet_wrap(vars(city_name), ncol = 2) +
+  labs(title = "Max and min temperature over time for each city since 2014", 
+       subtitle = "Max and min termperature fluctuate simultaneously and regularly during the year.",
+       x = "Date", y = "Min and Max temperature",
+       caption = "Jiaxin Huang") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle=element_text(size = 10),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+```
+
+## Column {data-width="350"}
+
+### Rainfall change since 2014
+```{r}
+calculate_CI <- function(x, conf) {
+  alpha <- 1 - conf
+  degrees_freedom <- length(x) - 1
+  t_score <- qt(p = alpha / 2, df = degrees_freedom, lower.tail = FALSE)
+  sample_sd_err <- sd(x)/sqrt(length(x))
+  lower_bound <- mean(x) - t_score * sample_sd_err
+  upper_bound <- mean(x) + t_score * sample_sd_err
+  output_value <- c(lower_bound, upper_bound)
+  output_name <- c("lower_bound", "upper_bound")
+  output <- setNames(output_value, output_name)
+  return(output)
+}
+rain_df <- combined_data %>%
+  filter(year >= 2014) %>%
+  group_by(year, city_name) %>%
+  summarize(sample_mean = mean(rainfall),
+            sample_sd = sd(rainfall),
+            lower_bound = calculate_CI(rainfall, 0.95)["lower_bound"],
+            upper_bound = calculate_CI(rainfall, 0.95)["upper_bound"])
+rain_df %>%
+  ggplot(aes(x = year, y = sample_mean, colour = "pink")) +
+  geom_point(size = 2) +
+  geom_line(colour = "black") +
+  geom_errorbar(aes(ymin = lower_bound, ymax = upper_bound)) +
+  facet_wrap(vars(city_name)) +
+  labs(title = "Mean and 95% CI for rainfall over time for each city", 
+       subtitle = "Canberra and Sydney have the lowest amount of rainfall, while the rest have relatively more rainfall.\nThe amount of rainfall tends to decrease as time goes by.",
+       x = "Year", y = "Amount of rainfall",
+       caption = "Jiaxin Huang") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle=element_text(size = 10),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+```
