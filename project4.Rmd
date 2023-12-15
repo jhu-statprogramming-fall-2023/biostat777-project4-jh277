@@ -94,9 +94,10 @@ DT::renderDataTable({
 })
 ```
 
-# Interactive Analysis {data-orientation=rows}
+# Interactive Analysis 
 
-## Row {data-height=3}
+## Column {.sidebar}
+
 ```{r}
 # user input (city)
 selectInput(inputId = "input_city", 
@@ -107,18 +108,17 @@ selectInput(inputId = "input_city",
 numericInput(inputId = "input_year", 
              label = "Select a year:", 
              value = 2014, min = 1967, max = 2019)
-```
-
-
-## Row { .tabset}
-
-### Distribution of rainfall
-```{r}
 sliderInput(inputId = "num_bin",
             label = "Number of bins:",
             min = 10,
             max = 30,
             value = 20)
+```
+
+## Distributions  { .tabset}
+
+### Rainfall
+```{r}
 # data wrangling
 rainfall_wrangled <- rainfall %>%
   na.omit(rainfall) %>%
@@ -140,7 +140,7 @@ renderPlot({
 })
 ```
 
-### Distribution of temperature
+### Temperature
 ```{r}
 renderPlot({
   combined_data %>%
@@ -156,27 +156,38 @@ renderPlot({
 
 # Static Analysis
 
-## Column {data-width="350"}
+## Temperature change since 2014 { .tabset}
 
-### Temperature change since 2014
+### Max
 ```{r}
 combined_data %>%
-  filter(year >= 2014) %>%
-  ggplot(aes(x = date, y = temperature, colour = temp_type)) +
-  geom_line() +
+  filter(year >= 2014, temp_type == "max") %>%
+  ggplot(aes(x = date, y = temperature)) +
+  geom_line(color = "pink") +
   facet_wrap(vars(city_name), ncol = 2) +
-  labs(title = "Max and min temperature over time for each city since 2014", 
-       subtitle = "Max and min termperature fluctuate simultaneously and regularly during the year.",
-       x = "Date", y = "Min and Max temperature",
+  labs(title = "Change of max temperature over time for each city since 2014",
+       x = "Date", y = "Max temperature",
        caption = "Jiaxin Huang") +
   theme(plot.title = element_text(hjust = 0.5, face = "bold"),
-        plot.subtitle=element_text(size = 10),
         axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 ```
 
-## Column {data-width="350"}
+### Min
+```{r}
+combined_data %>%
+  filter(year >= 2014, temp_type == "min") %>%
+  ggplot(aes(x = date, y = temperature)) +
+  geom_line(color = "orange") +
+  facet_wrap(vars(city_name), ncol = 2) +
+  labs(title = "Change of min temperature over time for each city since 2014",
+       x = "Date", y = "Min temperature",
+       caption = "Jiaxin Huang") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+```
 
-### Rainfall change since 2014
+## Rainfall change since 2014 {data-height=700}
+
 ```{r}
 calculate_CI <- function(x, conf) {
   alpha <- 1 - conf
@@ -211,3 +222,63 @@ rain_df %>%
         plot.subtitle=element_text(size = 10),
         axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 ```
+
+# Analysis
+
+## Column
+
+**Question**
+
+How to explore the relationship between rainfall and temperature of a city in a given year and?
+Here, I'll use the data for Perth in 2014 as an example.
+
+**Target Audience**
+
+1.  Any environmental specialists who are interested in exploring the relationship between temperature and rainfall, and use the relationship to predict possible health impacts on the population.
+2.  Farmers who want to make plans for their crop production and develop risk reducing strategies.
+
+**Methods**
+
+First, let's view the raw distribution of rainfall data and temperature data for Perth in 2014:
+
+```{r}
+combined_data %>%
+  filter(city_name == "PERTH", year == 2014) %>%
+  ggplot(aes(x = date, y = rainfall)) +
+  geom_point() +
+  geom_line(aes(x = date, y = temperature, colour = temp_type)) +
+  labs(title = "Distribution of temperature and rainfall for Perth in 2014", 
+       caption = "Jiaxin Huang") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 1, vjust = 1))
+```
+
+Then, let's view the relationship between rainfall and max temperature:
+
+```{r}
+combined_data %>%
+  filter(city_name == "PERTH", year == 2014, temp_type == "max") %>%
+  ggplot(aes(x = rainfall, y = temperature)) +        
+  geom_point(size = 2) + 
+  geom_smooth(method = "lm") +        
+  labs(title = "Relationship between rainfall and max temperature") + 
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+What about the relationship between rainfall and min temperature:
+
+```{r}
+combined_data %>%
+  filter(city_name == "PERTH", year == 2014, temp_type == "min") %>%
+  ggplot(aes(x = rainfall, y = temperature)) +        
+  geom_point(size = 2) + 
+  geom_smooth(method = "lm") +        
+  labs(title = "Relationship between rainfall and min temperature") + 
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+**Findings**
+
+Although the relationship we see in both cases is not clear and strong, we do see a week positive association between rainfall and temperature. However, this result might be biased by the outliers. 
