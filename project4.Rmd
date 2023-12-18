@@ -22,7 +22,7 @@ library(DT)
 
 # About
 
-## Column { .tabset}
+## Column 
 
 Rainfall and temperature are two important determining factors in agriculture production. However, factors like geographical region and interdependence between these two variables makes it hard to accurately model their relationship. 
 
@@ -30,15 +30,8 @@ Moreover, it is important to remind the mutual relationship between environmenta
 
 The goal of this dashboard is to help users explore the relationship between rainfall and temperature. 
 
-<iframe
-    width="640"
-    height="480"
-    src="https://www.youtube.com/embed/UmX4kyB2wfg"
-    frameborder="0"
-    allow="autoplay; encrypted-media"
-    allowfullscreen
->
-</iframe>
+
+<iframe width="800" height="500" src="https://www.youtube.com/embed/Bf862QqMgo8?si=EeMyv-Exz4jBBcik" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 # Data
 
@@ -146,7 +139,7 @@ renderPlot({
   combined_data %>%
     filter(city_name == input$input_city, year == input$input_year) %>%
     ggplot(aes(x = date, y = temperature, colour = temp_type)) +
-    geom_line(size = 2) +
+    geom_line(linewidth = 2) +
     labs(title = paste("Distribution of temperature in", str_to_lower(input$input_city), "in", input$input_year),
        x = "Date", y = "Temperature") +
   theme(plot.title = element_text(hjust = 0.5, face = "bold"),
